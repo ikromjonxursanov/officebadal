@@ -1,10 +1,8 @@
-# duties/models.py
 from django.db import models
-from apps.users.models import User
+from django.conf import settings
 
 
 class DutyCycle(models.Model):
-    """Navbatchilik tsikli"""
     name = models.CharField(max_length=100, default="Bozorlik navbati")
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -14,13 +12,27 @@ class DutyCycle(models.Model):
 
 
 class DutyAssignment(models.Model):
-    """Oylik navbatchilik"""
-    duty_cycle = models.ForeignKey(DutyCycle, on_delete=models.CASCADE, related_name='assignments')
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='duty_assignments')
-    month = models.DateField()  # Masalan: 2026-07-01 (iyul)
+    duty_cycle = models.ForeignKey(
+        DutyCycle,
+        on_delete=models.CASCADE,
+        related_name='assignments'
+    )
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='duty_assignments'
+    )
+
+    month = models.DateField()
 
     class Meta:
-        unique_together = ('duty_cycle', 'month')
+        constraints = [
+            models.UniqueConstraint(
+                fields=['duty_cycle', 'month'],
+                name='unique_duty_per_month'
+            )
+        ]
         ordering = ['month']
 
     def __str__(self):

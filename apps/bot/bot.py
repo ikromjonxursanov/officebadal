@@ -1,4 +1,11 @@
 # apps/bot/bot.py
+
+import os
+import django
+
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings")
+django.setup()
+
 import asyncio
 import logging
 from aiogram import Bot, Dispatcher
