@@ -8,3 +8,7 @@ redis
 django-celery-beat
 django-celery-results
 python-decouple==3.8
+redis
+celery[redis]
+django-celery-beat
+django-celery-results

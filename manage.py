@@ -7,13 +7,19 @@ import sys
 def main():
     """Run administrative tasks."""
     os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
+
+    # BU QISMNI QO'SHING - ENG MUHIMI
+    BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    APPS_DIR = os.path.join(BASE_DIR, 'apps')
+    sys.path.insert(0, APPS_DIR)  # apps papkasini import yo‘liga qo‘shamiz
+
     try:
         from django.core.management import execute_from_command_line
     except ImportError as exc:
         raise ImportError(
             "Couldn't import Django. Are you sure it's installed and "
-            "available on your PYTHONPATH environment variable? Did you "
-            "forget to activate a virtual environment?"
+            "available on your PYTHONPATH environment variable? "
+            "Did you forget to activate a virtual environment?"
         ) from exc
     execute_from_command_line(sys.argv)
 

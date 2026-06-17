@@ -1,8 +1,10 @@
-# bot/handlers.py
+# apps/bot/handlers.py
 from aiogram import Router, types
 from aiogram.filters import Command
 from asgiref.sync import sync_to_async
-from users.models import User
+
+# To'g'ri import (chunki apps/ ichida)
+from apps.users.models import User
 
 router = Router()
 
@@ -11,16 +13,15 @@ async def start_handler(message: types.Message):
     telegram_id = message.from_user.id
     full_name = message.from_user.full_name
 
-    # Foydalanuvchini bazada saqlash yoki yangilash
     user, created = await sync_to_async(User.objects.get_or_create)(
         telegram_id=telegram_id,
         defaults={
             'username': f"tg_{telegram_id}",
-            'first_name': full_name,
+            'first_name': full_name[:30],  # Django limit
         }
     )
 
     if created:
         await message.answer("✅ Siz tizimda ro‘yxatdan o‘tdingiz!")
     else:
-        await message.answer("✅ Xush kelibsiz! Siz allaqachon ro‘yxatdan o‘tgansiz.")
+        await message.answer(f"✅ Xush kelibsiz, {full_name}!")

@@ -131,3 +131,22 @@ TELEGRAM_BOT_TOKEN = config('TELEGRAM_BOT_TOKEN')
 TELEGRAM_GROUP_CHAT_ID = config('TELEGRAM_GROUP_CHAT_ID')
 if not TELEGRAM_BOT_TOKEN:
     print("⚠️ TELEGRAM_BOT_TOKEN .env faylda yo'q!")
+
+
+# ==================== CELERY SOZLAMALARI ====================
+
+CELERY_BROKER_URL = 'redis://localhost:6379/0'
+CELERY_RESULT_BACKEND = 'redis://localhost:6379/1'
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = 'Asia/Tashkent'
+CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
+
+# Django Celery Results
+INSTALLED_APPS += ['django_celery_results']
+
+# Periodic tasks uchun
+CELERY_BEAT_SCHEDULE = {
+    # Keyinchalik shu yerga eslatma tasklarini qo'shamiz
+}
