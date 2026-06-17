@@ -1,4 +1,9 @@
-Django==6.0.6
-celery==5.6.3
-django-celery-beat==2.9.0
-djangorestframework==3.17.1
+Django==5.1.*
+djangorestframework
+psycopg2-binary
+python-dotenv
+aiogram==3.13.*
+celery[redis]
+redis
+django-celery-beat
+django-celery-results
