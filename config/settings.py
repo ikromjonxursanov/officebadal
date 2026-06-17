@@ -26,12 +26,12 @@ INSTALLED_APPS = [
 
 
     #local
-    'users',
-    'contributions',
-    'duties',
-    'expenses',
-    'bot',
-    'tasks',
+    'apps.users',
+    'apps.contributions',
+    'apps.duties',
+    'apps.expenses',
+    'apps.bot',
+    'apps.tasks',
 ]
 
 MIDDLEWARE = [
@@ -63,7 +63,7 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'config.wsgi.application'
 
-
+AUTH_USER_MODEL = 'users.User'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
