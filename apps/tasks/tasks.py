@@ -1,85 +1,60 @@
 import asyncio
-from datetime import date
+import logging
 
 from aiogram import Bot
+from aiogram.client.default import DefaultBotProperties
+from aiogram.enums import ParseMode
 from celery import shared_task
 from django.conf import settings
+from django.utils import timezone
 
-from apps.contributions.models import MonthlyContribution, Payment
-from apps.duties.models import DutyAssignment
-from apps.users.models import User
+from apps.contributions.services import get_current_contribution, get_unpaid_users
 
-
-def _send_telegram_message(chat_id, text):
-    token = settings.TELEGRAM_BOT_TOKEN
-    if not token or not chat_id:
-        return
-
-    async def _send():
-        bot = Bot(token=token)
-        await bot.send_message(chat_id=chat_id, text=text)
-
-    asyncio.run(_send())
+logger = logging.getLogger(__name__)
 
 
-@shared_task
-def send_monthly_reminders():
-    today = date.today()
-    contribution = MonthlyContribution.objects.filter(
-        month__year=today.year,
-        month__month=today.month,
-        is_active=True,
-        due_date=today,
-    ).first()
-
-    if not contribution:
-        return
-
-    for user in User.objects.filter(is_active=True):
-        if not user.telegram_id:
-            continue
-
-        has_paid = Payment.objects.filter(
-            user=user,
-            contribution=contribution,
-            status=Payment.STATUS_APPROVED,
-        ).exists()
-        if has_paid:
-            continue
-
-        _send_telegram_message(
-            user.telegram_id,
-            (
-                f"Bugun oylik badal kuni.\n"
-                f"Oy: {contribution.month.strftime('%Y-%m')}\n"
-                f"Summa: {contribution.amount} so'm"
-            ),
-        )
+async def _send_messages(token: str, messages: list[tuple[int, str]]) -> int:
+    bot = Bot(
+        token=token,
+        default=DefaultBotProperties(parse_mode=ParseMode.HTML),
+    )
+    sent_count = 0
+    try:
+        for chat_id, text in messages:
+            try:
+                await bot.send_message(chat_id=chat_id, text=text)
+                sent_count += 1
+            except Exception:
+                logger.exception("Telegram reminder failed for chat_id=%s", chat_id)
+    finally:
+        await bot.session.close()
+    return sent_count
 
 
 @shared_task
-def send_duty_reminder():
-    today = date.today()
-    first_day = today.replace(day=1)
-    assignment = DutyAssignment.objects.filter(
-        month=first_day
-    ).select_related('user').first()
+def send_monthly_reminders() -> int:
+    if not settings.TELEGRAM_BOT_TOKEN:
+        logger.warning("TELEGRAM_BOT_TOKEN is empty; reminders skipped.")
+        return 0
 
-    if not assignment:
-        return
+    today = timezone.localdate()
+    contribution = get_current_contribution(today)
+    if not contribution or contribution.due_date > today:
+        return 0
 
-    if assignment.user.telegram_id:
-        _send_telegram_message(
-            assignment.user.telegram_id,
-            f"Bu oy bozorlik navbati: {assignment.user.get_full_name() or assignment.user.username}"
-        )
+    payment_details = contribution.payment_details or "To'lov kartasi admin tomonidan hali kiritilmagan."
+    text = (
+        "Bugun oylik badal kuni.\n"
+        f"Summa: {contribution.amount} so'm\n"
+        f"{payment_details}\n"
+        "To'lagan bo'lsangiz /toladim buyrug'ini yuboring."
+    )
+    messages = [
+        (user.telegram_id, text)
+        for user in get_unpaid_users(contribution)
+        if user.telegram_id
+    ]
+    if not messages:
+        return 0
 
-    group_chat_id = settings.TELEGRAM_GROUP_CHAT_ID
-    if group_chat_id:
-        _send_telegram_message(
-            group_chat_id,
-            (
-                f"📅 Bu oy bozorlik navbati: "
-                f"{assignment.user.get_full_name() or assignment.user.username}"
-            )
-        )
+    return asyncio.run(_send_messages(settings.TELEGRAM_BOT_TOKEN, messages))

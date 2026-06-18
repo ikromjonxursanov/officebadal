@@ -1,16 +1,40 @@
 from pathlib import Path
 from decouple import config
+from django.core.exceptions import ImproperlyConfigured
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+
+def config_bool(value):
+    if isinstance(value, bool):
+        return value
+
+    normalized = str(value).strip().lower()
+    return normalized not in {'0', 'false', 'no', 'off', 'release', 'prod', 'production'}
+
+
+def config_list(value):
+    return [item.strip() for item in value.split(',') if item.strip()]
+
+
 SECRET_KEY = config('SECRET_KEY', default='dev-secret-key')
-DEBUG = config('DEBUG', default=True, cast=bool)
+DEBUG = config('DEBUG', default=False, cast=config_bool)
 ALLOWED_HOSTS = config(
     'ALLOWED_HOSTS',
-    default='*',
-    cast=lambda value: [item.strip()
-                        for item in value.split(',') if item.strip()],
+    default='localhost,127.0.0.1',
+    cast=config_list,
 )
+CSRF_TRUSTED_ORIGINS = config(
+    'CSRF_TRUSTED_ORIGINS',
+    default='',
+    cast=config_list,
+)
+
+if not DEBUG and SECRET_KEY == 'dev-secret-key':
+    raise ImproperlyConfigured('Production uchun SECRET_KEY .env faylida berilishi kerak.')
+
+if not DEBUG and '*' in ALLOWED_HOSTS:
+    raise ImproperlyConfigured('Production uchun ALLOWED_HOSTS aniq domain/IP bo\'lishi kerak, * emas.')
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -24,8 +48,6 @@ INSTALLED_APPS = [
     'django_celery_results',
     'apps.users',
     'apps.contributions',
-    'apps.duties',
-    'apps.expenses',
     'apps.bot',
     'apps.tasks',
 ]
@@ -108,7 +130,23 @@ USE_I18N = True
 USE_TZ = True
 
 STATIC_URL = 'static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+MEDIA_URL = 'media/'
+MEDIA_ROOT = BASE_DIR / 'media'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+SECURE_SSL_REDIRECT = config('SECURE_SSL_REDIRECT', default=False, cast=config_bool)
+SESSION_COOKIE_SECURE = config('SESSION_COOKIE_SECURE', default=False, cast=config_bool)
+CSRF_COOKIE_SECURE = config('CSRF_COOKIE_SECURE', default=False, cast=config_bool)
+SECURE_HSTS_SECONDS = config('SECURE_HSTS_SECONDS', default=0, cast=int)
+SECURE_HSTS_INCLUDE_SUBDOMAINS = config(
+    'SECURE_HSTS_INCLUDE_SUBDOMAINS',
+    default=False,
+    cast=config_bool,
+)
+SECURE_HSTS_PRELOAD = config('SECURE_HSTS_PRELOAD', default=False, cast=config_bool)
+USE_X_FORWARDED_HOST = config('USE_X_FORWARDED_HOST', default=True, cast=config_bool)
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
@@ -136,12 +174,8 @@ CELERY_TIMEZONE = 'Asia/Tashkent'
 CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
 
 CELERY_BEAT_SCHEDULE = {
-    'send-monthly-reminders-every-hour': {
+    'send-contribution-reminders-every-2-hours': {
         'task': 'apps.tasks.tasks.send_monthly_reminders',
-        'schedule': 60 * 60,
-    },
-    'send-duty-reminder-every-day': {
-        'task': 'apps.tasks.tasks.send_duty_reminder',
-        'schedule': 60 * 60 * 24,
+        'schedule': 60 * 60 * 2,
     },
 }

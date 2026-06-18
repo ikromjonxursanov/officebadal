@@ -6,6 +6,10 @@ class User(AbstractUser):
     """Ofis xodimlari uchun maxsus foydalanuvchi modeli."""
     telegram_id = models.BigIntegerField(unique=True, null=True, blank=True)
     phone = models.CharField(max_length=20, blank=True)
+    payment_card_seen_month = models.DateField(null=True, blank=True)
+    payment_screenshot_month = models.DateField(null=True, blank=True)
+    payment_screenshot_file_id = models.CharField(max_length=255, blank=True)
+    payment_screenshot_path = models.CharField(max_length=255, blank=True)
     is_active = models.BooleanField(default=True)
 
     class Meta:

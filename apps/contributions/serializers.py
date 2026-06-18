@@ -11,6 +11,8 @@ class MonthlyContributionSerializer(serializers.ModelSerializer):
             'month',
             'amount',
             'due_date',
+            'payment_card_number',
+            'payment_card_holder',
             'is_active',
             'created_at'
         )
@@ -28,16 +30,11 @@ class PaymentSerializer(serializers.ModelSerializer):
             'user',
             'contribution',
             'amount',
-            'status',
             'payment_method',
-            'submitted_at',
-            'paid_at',
-            'approved_by',
-            'note'
+            'status',
+            'receipt_file_id',
+            'receipt_image',
+            'note',
+            'paid_at'
         )
-        read_only_fields = (
-            'id',
-            'submitted_at',
-            'paid_at',
-            'approved_by'
-        )
+        read_only_fields = ('id', 'paid_at')
