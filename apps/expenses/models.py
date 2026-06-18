@@ -1,10 +1,9 @@
-# expenses/models.py
+from django.conf import settings
 from django.db import models
-from apps.users.models import User
 
 
 class Expense(models.Model):
-    """Xarajatlar"""
+    """Ofis xarajatlari."""
     CATEGORY_CHOICES = [
         ('coffee', 'Kofe'),
         ('tea', 'Choy'),
@@ -17,11 +16,17 @@ class Expense(models.Model):
     category = models.CharField(max_length=50, choices=CATEGORY_CHOICES)
     amount = models.DecimalField(max_digits=12, decimal_places=2)
     description = models.TextField(blank=True)
-    added_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+    added_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='expenses'
+    )
 
     class Meta:
-        verbose_name = "Xarajat"
-        verbose_name_plural = "Xarajatlar"
+        verbose_name = 'Xarajat'
+        verbose_name_plural = 'Xarajatlar'
         ordering = ['-date']
 
     def __str__(self):
