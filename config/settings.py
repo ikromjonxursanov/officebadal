@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     'django_celery_results',
     'apps.users',
     'apps.contributions',
+    'apps.expenses',
     'apps.bot',
     'apps.tasks',
 ]
@@ -162,6 +163,16 @@ REST_FRAMEWORK = {
 
 TELEGRAM_BOT_TOKEN = config('TELEGRAM_BOT_TOKEN', default='')
 TELEGRAM_GROUP_CHAT_ID = config('TELEGRAM_GROUP_CHAT_ID', default='')
+ADMIN_TELEGRAM_ID = config('ADMIN_TELEGRAM_ID', default='')
+
+OPENAI_API_KEY = config('OPENAI_API_KEY', default='')
+OPENAI_RECEIPT_CHECK_ENABLED = config(
+    'OPENAI_RECEIPT_CHECK_ENABLED',
+    default=False,
+    cast=config_bool,
+)
+OPENAI_RECEIPT_MODEL = config('OPENAI_RECEIPT_MODEL', default='gpt-4.1-mini')
+RECEIPT_ALLOWED_DAYS = config('RECEIPT_ALLOWED_DAYS', default=2, cast=int)
 
 CELERY_BROKER_URL = config(
     'CELERY_BROKER_URL', default='redis://localhost:6379/0')
@@ -177,5 +188,9 @@ CELERY_BEAT_SCHEDULE = {
     'send-contribution-reminders-every-2-hours': {
         'task': 'apps.tasks.tasks.send_monthly_reminders',
         'schedule': 60 * 60 * 2,
+    },
+    'create-monthly-contribution-every-day': {
+        'task': 'apps.tasks.tasks.create_monthly_contribution',
+        'schedule': 60 * 60 * 24,
     },
 }

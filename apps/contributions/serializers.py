@@ -34,6 +34,9 @@ class PaymentSerializer(serializers.ModelSerializer):
             'status',
             'receipt_file_id',
             'receipt_image',
+            'receipt_ocr_text',
+            'reject_reason',
+            'paid_month',
             'note',
             'paid_at'
         )

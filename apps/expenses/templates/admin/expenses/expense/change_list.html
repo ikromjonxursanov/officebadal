@@ -1,0 +1,18 @@
+{% extends "admin/change_list.html" %}
+
+{% block content %}
+  {% if office_summary %}
+    <div class="module" style="padding: 12px; margin-bottom: 16px;">
+      <h2>OfficeBadal summary</h2>
+      <p><strong>Jami yig'ilgan summa:</strong> {{ office_summary.confirmed_total }} so'm</p>
+      <p><strong>Jami xarajat:</strong> {{ office_summary.expense_total }} so'm</p>
+      <p><strong>Ofis balansida:</strong> {{ office_summary.balance }} so'm</p>
+      <hr>
+      <p><strong>Jami user:</strong> {{ office_summary.active_users }}</p>
+      <p><strong>To'laganlar:</strong> {{ office_summary.confirmed_count }}</p>
+      <p><strong>Pending cheklar:</strong> {{ office_summary.pending_count }}</p>
+      <p><strong>To'lamaganlar:</strong> {{ office_summary.unpaid_count }}</p>
+    </div>
+  {% endif %}
+  {{ block.super }}
+{% endblock %}

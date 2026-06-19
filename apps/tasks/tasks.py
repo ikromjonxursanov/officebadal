@@ -8,6 +8,7 @@ from celery import shared_task
 from django.conf import settings
 from django.utils import timezone
 
+from apps.contributions.models import ContributionSetting, MonthlyContribution
 from apps.contributions.services import get_current_contribution, get_unpaid_users
 
 logger = logging.getLogger(__name__)
@@ -58,3 +59,25 @@ def send_monthly_reminders() -> int:
         return 0
 
     return asyncio.run(_send_messages(settings.TELEGRAM_BOT_TOKEN, messages))
+
+
+@shared_task
+def create_monthly_contribution() -> int:
+    today = timezone.localdate()
+    month = today.replace(day=1)
+    setting = ContributionSetting.objects.filter(is_active=True).order_by('-created_at').first()
+    if not setting:
+        return 0
+
+    due_date = month.replace(day=setting.due_day)
+    _, created = MonthlyContribution.objects.get_or_create(
+        month=month,
+        defaults={
+            'amount': setting.amount,
+            'due_date': due_date,
+            'payment_card_number': setting.payment_card_number,
+            'payment_card_holder': setting.payment_card_holder,
+            'is_active': True,
+        },
+    )
+    return int(created)

@@ -8,6 +8,11 @@ from django.utils import timezone
 from apps.contributions.models import MonthlyContribution, Payment
 from apps.users.models import User
 
+TELEGRAM_REJECT_WARNING = (
+    "Chek noto'g'ri yoki shubhali. Iltimos, qayta bunday qilmang va "
+    "faqat haqiqiy to'lov chekini yuboring."
+)
+
 
 def normalize_telegram_username(username: str | None) -> str:
     return (username or '').strip().lstrip('@').lower()
@@ -113,6 +118,11 @@ def submit_current_month_payment(
     user: User,
     receipt_file_id: str = '',
     receipt_image: str = '',
+    receipt_ocr_text: str = '',
+    extracted_amount=None,
+    extracted_date=None,
+    extracted_card_last4: str = '',
+    transaction_id: str = '',
 ) -> PaymentResult | None:
     contribution = get_current_contribution()
     if not contribution:
@@ -128,6 +138,12 @@ def submit_current_month_payment(
             'status': Payment.Status.PENDING,
             'receipt_file_id': receipt_file_id,
             'receipt_image': receipt_image,
+            'receipt_ocr_text': receipt_ocr_text,
+            'paid_month': contribution.month,
+            'extracted_amount': extracted_amount,
+            'extracted_date': extracted_date,
+            'extracted_card_last4': extracted_card_last4,
+            'transaction_id': transaction_id,
         },
     )
     resubmitted = False
@@ -137,7 +153,27 @@ def submit_current_month_payment(
         payment.note = 'Bot orqali qayta yuborildi'
         payment.receipt_file_id = receipt_file_id
         payment.receipt_image = receipt_image
-        payment.save(update_fields=['status', 'paid_at', 'note', 'receipt_file_id', 'receipt_image'])
+        payment.receipt_ocr_text = receipt_ocr_text
+        payment.reject_reason = ''
+        payment.paid_month = contribution.month
+        payment.extracted_amount = extracted_amount
+        payment.extracted_date = extracted_date
+        payment.extracted_card_last4 = extracted_card_last4
+        payment.transaction_id = transaction_id
+        payment.save(update_fields=[
+            'status',
+            'paid_at',
+            'note',
+            'receipt_file_id',
+            'receipt_image',
+            'receipt_ocr_text',
+            'reject_reason',
+            'paid_month',
+            'extracted_amount',
+            'extracted_date',
+            'extracted_card_last4',
+            'transaction_id',
+        ])
         resubmitted = True
 
     return PaymentResult(payment=payment, created=created, resubmitted=resubmitted)
@@ -147,11 +183,21 @@ def mark_current_month_paid(
     user: User,
     receipt_file_id: str = '',
     receipt_image: str = '',
+    receipt_ocr_text: str = '',
+    extracted_amount=None,
+    extracted_date=None,
+    extracted_card_last4: str = '',
+    transaction_id: str = '',
 ) -> PaymentResult | None:
     return submit_current_month_payment(
         user,
         receipt_file_id=receipt_file_id,
         receipt_image=receipt_image,
+        receipt_ocr_text=receipt_ocr_text,
+        extracted_amount=extracted_amount,
+        extracted_date=extracted_date,
+        extracted_card_last4=extracted_card_last4,
+        transaction_id=transaction_id,
     )
 
 
@@ -161,7 +207,7 @@ def get_unpaid_users(contribution: MonthlyContribution) -> QuerySet[User]:
         telegram_id__isnull=False,
     ).exclude(
         payments__contribution=contribution,
-        payments__status__in=[Payment.Status.PENDING, Payment.Status.APPROVED],
+        payments__status__in=[Payment.Status.PENDING, Payment.Status.CONFIRMED],
     ).order_by('first_name', 'username')
 
 
@@ -171,3 +217,31 @@ def get_payment_for_current_month(user: User) -> Payment | None:
         return None
 
     return Payment.objects.filter(user=user, contribution=contribution).first()
+
+
+def confirm_payment_by_admin(payment_id: int) -> Payment | None:
+    payment = Payment.objects.select_related('user', 'contribution').filter(pk=payment_id).first()
+    if not payment:
+        return None
+
+    if payment.status != Payment.Status.CONFIRMED:
+        payment.status = Payment.Status.CONFIRMED
+        payment.reject_reason = ''
+        payment.full_clean()
+        payment.save(update_fields=['status', 'reject_reason'])
+
+    return payment
+
+
+def reject_payment_by_admin(payment_id: int, reason: str = TELEGRAM_REJECT_WARNING) -> Payment | None:
+    payment = Payment.objects.select_related('user', 'contribution').filter(pk=payment_id).first()
+    if not payment:
+        return None
+
+    if payment.status != Payment.Status.REJECTED:
+        payment.status = Payment.Status.REJECTED
+        payment.reject_reason = reason
+        payment.full_clean()
+        payment.save(update_fields=['status', 'reject_reason'])
+
+    return payment

@@ -46,7 +46,7 @@ class MonthlyContribution(models.Model):
             is_active=True
         ).exclude(
             payments__contribution=self,
-            payments__status=Payment.Status.APPROVED,
+            payments__status=Payment.Status.CONFIRMED,
         ).count()
 
     def clean(self):
@@ -62,12 +62,35 @@ class MonthlyContribution(models.Model):
                 })
 
 
+class ContributionSetting(models.Model):
+    """Har oy avtomatik badal yaratish uchun oddiy sozlama."""
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    due_day = models.PositiveSmallIntegerField(default=5)
+    payment_card_number = models.CharField(max_length=40, blank=True)
+    payment_card_holder = models.CharField(max_length=120, blank=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Badal sozlamasi'
+        verbose_name_plural = 'Badal sozlamalari'
+
+    def __str__(self):
+        return f"{self.amount} so'm / har oyning {self.due_day}-sanasi"
+
+    def clean(self):
+        if not 1 <= self.due_day <= 28:
+            raise ValidationError({
+                'due_day': "To'lov kuni 1 dan 28 gacha bo'lishi kerak."
+            })
+
+
 class Payment(models.Model):
     """Har bir foydalanuvchining badal to'lovi."""
 
     class Status(models.TextChoices):
         PENDING = 'pending', 'Tasdiqlash kutilmoqda'
-        APPROVED = 'approved', 'Tasdiqlandi'
+        CONFIRMED = 'confirmed', 'Tasdiqlandi'
         REJECTED = 'rejected', 'Rad etildi'
 
     user = models.ForeignKey(
@@ -90,6 +113,13 @@ class Payment(models.Model):
     )
     receipt_file_id = models.CharField(max_length=255, blank=True)
     receipt_image = models.FileField(upload_to='receipts/', blank=True)
+    receipt_ocr_text = models.TextField(blank=True)
+    reject_reason = models.CharField(max_length=255, blank=True)
+    paid_month = models.DateField(null=True, blank=True)
+    extracted_amount = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    extracted_date = models.DateField(null=True, blank=True)
+    extracted_card_last4 = models.CharField(max_length=4, blank=True)
+    transaction_id = models.CharField(max_length=120, blank=True)
     note = models.CharField(max_length=255, blank=True)
 
     class Meta:
@@ -100,6 +130,12 @@ class Payment(models.Model):
 
     def __str__(self):
         return f"{self.user} - {self.contribution} - {self.amount}"
+
+    def clean(self):
+        if self.status == self.Status.REJECTED and not self.reject_reason.strip():
+            raise ValidationError({
+                'reject_reason': "Rad etilganda sabab yozilishi shart."
+            })
 
     @property
     def paid_date(self):
